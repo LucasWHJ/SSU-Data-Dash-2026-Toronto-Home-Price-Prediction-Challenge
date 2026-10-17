@@ -10,8 +10,6 @@ deliberately simple, so you can measure how much your own ideas add.
 import numpy as np
 from sklearn.ensemble import HistGradientBoostingRegressor
 
-import features
-
 
 def make_model(track):
     """Return a fresh, untrained model for "off_market" or "list_aware"."""

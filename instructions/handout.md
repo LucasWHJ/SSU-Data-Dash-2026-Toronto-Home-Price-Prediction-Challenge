@@ -84,7 +84,7 @@ python run.py predict    # write both submission files
 python run.py check      # check them before you hand in
 ```
 
-Edit `features.py` (features) and `models.py` (models). `validate` predicts each month from the sales
+Edit `../files/features.py` (features) and `../files/models.py` (models). `validate` predicts each month from the sales
 before it, the same way we test you. Its numbers are the ones to report.
 
 The bar. On the starter's walk-forward validation (December 2025 to May 2026):
@@ -98,7 +98,7 @@ The bar. On the starter's walk-forward validation (December 2025 to May 2026):
 MdAPE is the median absolute percentage error, |predicted − sold| / sold; MAPE is the mean. To earn
 accuracy points on a track, your hidden-test MdAPE must be below the maximum error: the simple
 baseline's error on the same hidden homes. The starter's off-market baseline is above it, so you have to
-improve on it. A gradient-boosted model (`FeatureModel`) is ready to switch on in `models.py`.
+improve on it. A gradient-boosted model (`FeatureModel`) is ready to switch on in `../files/models.py`.
 
 ## What to submit
 
@@ -106,7 +106,7 @@ By **November 8, 11:59 pm EST**, through the form we will email and post on Disc
 (4 pages max) that links to:
 
 1. A video, 5 minutes max, on YouTube (unlisted is fine, private is not). Judges stop at 5:00.
-2. A GitHub repository (public, or shared with the organisers) holding your code and two files,
+2. A GitHub repository (public, or shared with the organizers) holding your code and two files,
    written by `python run.py predict`:
 
 ```
@@ -117,7 +117,7 @@ ml_num,predicted_price
 SYN-0123456,815000
 ```
 
-Use the report template in the starter (`report/report.tex`; it compiles on Overleaf). Put every
+Use the report template in the starter (`../report/report.tex`; it compiles on Overleaf). Put every
 team member's full name on it. Report your walk-forward validation MdAPE for each track: we compare
 it with your hidden-test error. Late submissions are not reviewed.
 

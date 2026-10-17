@@ -1,6 +1,6 @@
 # SSU Data Dash: predict Toronto home prices
 
-Start with the case handout, [`handout.md`](handout.md), and the judging rubric, [`rubric.md`](rubric.md).
+Start with the case handout, [`handout`](instructions/handout.md), and the judging rubric, [`rubric`](instructions/rubric.md).
 
 Two tracks:
 - **Off-market:** value a home with no list price.
@@ -36,8 +36,8 @@ On Windows, use `py` if `python` is not found.
 
 ## What to edit
 
-- **`features.py`**: the features.
-- **`models.py`**: the models. Two simple baselines to beat: list price (list-aware) and the
+- **`features`**: the features.
+- **`models`**: the models. Two simple baselines to beat: list price (list-aware) and the
   10 nearest earlier sales (off-market). `FeatureModel` (gradient-boosted trees) is ready to switch on.
 
 ## Validation
@@ -50,7 +50,7 @@ validation error with your hidden-test error.
 
 One PDF report (template: `report/report.tex`, 4 pages max) that links to:
 1. your video on YouTube, 5 minutes max (unlisted is fine, not private);
-2. your GitHub repository (public, or shared with the organisers), holding your code and two files:
+2. your GitHub repository (public, or shared with the organizers), holding your code and two files:
 
 ```
 submissions/submission_off_market.csv    one row per home in test_off_market
