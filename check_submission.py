@@ -48,7 +48,7 @@ def check_file(path, test_ids):
 
 def check_all(folder="submissions"):
     """Check submission_off_market.csv and submission_list_aware.csv. Return True if both are fine."""
-    import data
+    from files import data
     all_fine = True
     for track in TRACKS:
         path = Path(folder) / f"submission_{track}.csv"
