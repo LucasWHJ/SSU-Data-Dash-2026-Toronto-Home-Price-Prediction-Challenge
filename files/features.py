@@ -1,27 +1,27 @@
-"""Features available when a home is listed, for both competition tracks.
+"""EDIT ME: turn a table of homes into numbers a model can learn from.
 
-Never use sold_price, date_sold, days_on_market, or the external AVM here.
-Off-market must never receive list_price.
+Each function gets a table of homes with the columns of its test file (so never
+sold_price or date_sold) and returns a table of numbers, one row per home.
+FeatureModel in models.py uses them; switch it on in make_model() to try your features.
+
+Ideas to try:
+- lot size: lot_front * lot_depth (empty for condos, which is fine for tree models)
+- garage, house_style, municipality
+- how pricey a community is: the median price per square foot of its past sales
+  (work it out from the training sales only, never from the homes you predict)
+- how prices have moved recently in the area or for that property type
+- words in the remarks, such as "renovated" or "needs work"
+- off-market and list-aware can use different features: list-aware has list_price
 """
-import numpy as np
 import pandas as pd
 
-CATEGORICAL_COLUMNS = ("house_type_name", "house_style", "municipality", "community")
-
-# Simple listing-description indicators. These are fixed before validation, so no
-# vocabulary or statistics are learned from the future or the hidden test homes.
-REMARK_PATTERNS = {
-    "renovated": r"renovat|updated|modern|upgrad|remodel",
-    "needs_work": r"needs work|fixer|as.is|tlc|original condition",
-    "luxury": r"luxur|premium|high.end|custom built",
-    "waterfront": r"waterfront|lake view|water view",
-    "transit": r"subway|transit|t.tc|go station",
-    "new_build": r"new build|newly built|brand new",
-}
+PROPERTY_TYPES = ["Condo Apt", "Detached", "Semi-Detached", "Condo Townhouse",
+                  "Freehold Townhouse", "Co-Op Apt"]
 
 
 def square_feet(house_area):
-    """Convert a single area or a range such as 900-1099 to square feet."""
+    """house_area is text, either one number ("622") or a range ("900-1099").
+    Return a number: the number itself, or the middle of the range."""
     parts = house_area.astype(str).str.split("-", expand=True).reindex(columns=[0, 1])
     low = pd.to_numeric(parts[0], errors="coerce")
     high = pd.to_numeric(parts[1], errors="coerce").fillna(low)
@@ -29,30 +29,24 @@ def square_feet(house_area):
 
 
 def off_market_features(homes):
-    """Make only features known at listing time, without asking price."""
-    x = pd.DataFrame(index=homes.index)
-    x["square_feet"] = square_feet(homes["house_area"])
-    for source, name in (("bedrooms", "bedrooms"), ("washrooms", "washrooms"),
-                         ("parking_total", "parking"), ("garage", "garage"),
-                         ("lot_front", "lot_front"), ("lot_depth", "lot_depth"),
-                         ("latitude", "latitude"), ("longitude", "longitude")):
-        x[name] = pd.to_numeric(homes[source], errors="coerce")
-    x["lot_area"] = x["lot_front"] * x["lot_depth"]
-    listed = pd.to_datetime(homes["date_listed"])
-    x["months_since_2021"] = (listed - pd.Timestamp("2021-01-01")).dt.days / 30.44
-    x["listing_month_sin"] = np.sin(2 * np.pi * listed.dt.month / 12)
-    x["listing_month_cos"] = np.cos(2 * np.pi * listed.dt.month / 12)
-    for name in CATEGORICAL_COLUMNS:
-        x[name] = homes[name].fillna("Unknown").astype(str)
-    remarks = homes["remarks"].fillna("").astype(str).str.lower()
-    for name, pattern in REMARK_PATTERNS.items():
-        x["remark_" + name] = remarks.str.contains(pattern, regex=True).astype(int)
-    return x
+    """Features for homes with no list price."""
+    X = pd.DataFrame(index=homes.index)
+    X["square_feet"] = square_feet(homes["house_area"])
+    X["bedrooms"] = homes["bedrooms"]
+    X["washrooms"] = homes["washrooms"]
+    X["parking"] = homes["parking_total"]
+    X["latitude"] = homes["latitude"]
+    X["longitude"] = homes["longitude"]
+    # Months since January 2021, so the model can follow prices over time.
+    X["months"] = (homes["date_listed"] - pd.Timestamp("2021-01-01")).dt.days / 30.44
+    # One 0/1 column per property type.
+    for kind in PROPERTY_TYPES:
+        X["is_" + kind] = (homes["house_type_name"] == kind).astype(int)
+    return X
 
 
 def list_aware_features(homes):
-    """Add asking-price information available only in the list-aware track."""
-    x = off_market_features(homes)
-    x["list_price"] = pd.to_numeric(homes["list_price"], errors="coerce")
-    x["list_price_per_sqft"] = x["list_price"] / x["square_feet"].replace(0, np.nan)
-    return x
+    """Features for homes that have a list price: everything above, plus the list price."""
+    X = off_market_features(homes)
+    X["list_price"] = homes["list_price"]
+    return X

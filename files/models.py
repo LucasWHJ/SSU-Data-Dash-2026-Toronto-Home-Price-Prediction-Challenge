@@ -1,38 +1,52 @@
-"""Models for the off-market and list-aware home-price tracks."""
-import numpy as np
-import pandas as pd
-from sklearn.ensemble import HistGradientBoostingRegressor
+"""EDIT ME: the models. Every model has the same two steps:
 
-from . import features
+    model.fit(train)        train = past sales, including sold_price and date_sold
+    model.predict(homes)    homes = homes to value, with only the columns of a test file;
+                            returns one predicted sold price per home
+
+make_model() picks the model for each track. The two starting models are baselines:
+deliberately simple, so you can measure how much your own ideas add.
+"""
+import numpy as np
+from sklearn.ensemble import HistGradientBoostingRegressor
 
 
 def make_model(track):
-    """Return the active model for a competition track."""
-    if track == "off_market":
-        return FeatureModel(features.off_market_features)
+    """Return a fresh, untrained model for "off_market" or "list_aware"."""
     if track == "list_aware":
-        return FeatureModel(features.list_aware_features, relative_to_list=True)
-    raise ValueError(f"Unknown track: {track}")
+        return ListPriceBaseline()
+        # return FeatureModel(features.list_aware_features)   # try this instead
+    return NearestSalesBaseline(k=10)
+    # return FeatureModel(features.off_market_features)       # try this instead
 
 
 class ListPriceBaseline:
-    """List-aware baseline: predict exactly the asking price."""
+    """List-aware baseline: every home sells for exactly its list price."""
 
     def fit(self, train):
-        return self
+        return self   # nothing to learn
 
     def predict(self, homes):
         return homes["list_price"].to_numpy(dtype=float)
 
 
 class NearestSalesBaseline:
-    """Off-market baseline: median of the nearest earlier sales of the same type."""
+    """Off-market baseline: the median sold price of the k nearest earlier sales of
+    the same property type.
+
+    "Nearest" means closest by latitude and longitude. "Earlier" means sold before the
+    home was listed, so the model never looks into the future, even when the
+    training table holds later sales. It makes no adjustment for size, condition or
+    for prices moving since those sales: improving on that is your job.
+    """
 
     def __init__(self, k=10):
         self.k = k
 
     def fit(self, train):
         columns = ["ml_num", "house_type_name", "date_sold", "latitude", "longitude", "sold_price"]
+        # Newest sales first, so when several sales are equally near (a condo
+        # building shares one location), the most recent ones are picked.
         self.sales = train[columns].sort_values(["date_sold", "ml_num"], ascending=[False, True])
         self.sales_by_type = dict(list(self.sales.groupby("house_type_name")))
         return self
@@ -43,56 +57,34 @@ class NearestSalesBaseline:
     def predict_one(self, home):
         sales = self.sales_by_type.get(home["house_type_name"], self.sales)
         earlier = sales[sales["date_sold"] < home["date_listed"]]
-        if len(earlier) == 0:
+        if len(earlier) == 0:   # no earlier sale of this type: use every type
             earlier = self.sales[self.sales["date_sold"] < home["date_listed"]]
+
+        # Distance in degrees. In Toronto a degree of longitude is only 0.72 times as
+        # long as a degree of latitude (0.72 = cosine of 43.7 degrees north).
         dx = (earlier["longitude"].to_numpy() - home["longitude"]) * 0.72
         dy = earlier["latitude"].to_numpy() - home["latitude"]
         distance = np.sqrt(dx ** 2 + dy ** 2)
+
         nearest = np.argsort(distance, kind="stable")[: self.k]
         return float(np.median(earlier["sold_price"].to_numpy()[nearest]))
 
 
 class FeatureModel:
-    """Gradient-boosted trees fitted only on the supplied past sales.
+    """A machine-learning model (gradient-boosted trees) on the features in features.py.
 
-    Off-market learns log(sale price). List-aware learns log(sale / list)
-    so the asking price is an explicit anchor. Categories come from the
-    training sales and are reused unchanged for validation and prediction.
+    It learns log(price) rather than price, so a 10% miss on a cheap condo counts
+    as much as a 10% miss on an expensive house. Not used until you switch it on
+    in make_model().
     """
 
-    def __init__(self, make_features, relative_to_list=False):
+    def __init__(self, make_features):
         self.make_features = make_features
-        self.relative_to_list = relative_to_list
-        self.categories = {}
-        self.model = HistGradientBoostingRegressor(
-            learning_rate=0.06,
-            max_iter=260,
-            max_leaf_nodes=31,
-            min_samples_leaf=40,
-            l2_regularization=0.1,
-            categorical_features="from_dtype",
-            early_stopping=False,
-            random_state=0,
-        )
-
-    def _prepare(self, homes, fitting=False):
-        x = self.make_features(homes).copy()
-        for column in features.CATEGORICAL_COLUMNS:
-            if fitting:
-                self.categories[column] = pd.Index(x[column].unique()).tolist()
-            x[column] = pd.Categorical(x[column], categories=self.categories[column])
-        return x
+        self.model = HistGradientBoostingRegressor(random_state=0)
 
     def fit(self, train):
-        x = self._prepare(train, fitting=True)
-        target = train["sold_price"].to_numpy(dtype=float)
-        if self.relative_to_list:
-            target = target / train["list_price"].to_numpy(dtype=float)
-        self.model.fit(x, np.log(target))
+        self.model.fit(self.make_features(train), np.log(train["sold_price"]))
         return self
 
     def predict(self, homes):
-        prediction = np.exp(self.model.predict(self._prepare(homes)))
-        if self.relative_to_list:
-            prediction *= homes["list_price"].to_numpy(dtype=float)
-        return prediction
+        return np.exp(self.model.predict(self.make_features(homes)))

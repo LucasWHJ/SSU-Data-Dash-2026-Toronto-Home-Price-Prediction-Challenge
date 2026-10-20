@@ -3,9 +3,7 @@ data/
 outputs/
 reports/
 figures/
-submissions/*
-!submissions/submission_off_market.csv
-!submissions/submission_list_aware.csv
+submissions/
 
 # Python and notebook clutter
 __pycache__/

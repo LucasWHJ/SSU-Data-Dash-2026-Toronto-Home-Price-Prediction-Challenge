@@ -6,9 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import check_submission
-import run
-from files import data, models
+from pyfiles import check_submission, data, models, run
 
 
 def make_listings(n, seed=0, first_id=0):
