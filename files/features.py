@@ -21,7 +21,7 @@ PROPERTY_TYPES = ["Condo Apt", "Detached", "Semi-Detached", "Condo Townhouse",
 MUNICIPALITIES = ["Etobicoke", "North York", "Scarborough", "Toronto", "York"]
 
 
-def square_feet(house_area, adj):
+def square_feet(house_area, adj = None):
     """house_area is text, either one number ("622") or a range ("900-1099").
     Return a number: the number itself, or the middle of the range."""
     parts = house_area.astype(str).str.split("-", expand=True).reindex(columns=[0, 1])
