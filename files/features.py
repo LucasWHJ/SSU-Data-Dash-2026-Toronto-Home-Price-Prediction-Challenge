@@ -18,13 +18,19 @@ import pandas as pd
 PROPERTY_TYPES = ["Condo Apt", "Detached", "Semi-Detached", "Condo Townhouse",
                   "Freehold Townhouse", "Co-Op Apt"]
 
+MUNICIPALITIES = ["Etobicoke", "North York", "Scarborough", "Toronto", "York"]
 
-def square_feet(house_area):
+
+def square_feet(house_area, adj):
     """house_area is text, either one number ("622") or a range ("900-1099").
     Return a number: the number itself, or the middle of the range."""
     parts = house_area.astype(str).str.split("-", expand=True).reindex(columns=[0, 1])
     low = pd.to_numeric(parts[0], errors="coerce")
     high = pd.to_numeric(parts[1], errors="coerce").fillna(low)
+    if adj == "min":
+        return low
+    if adj == "max":
+        return high
     return (low + high) / 2
 
 
@@ -32,6 +38,7 @@ def off_market_features(homes):
     """Features for homes with no list price."""
     X = pd.DataFrame(index=homes.index)
     X["square_feet"] = square_feet(homes["house_area"])
+    X["lot_size"] = homes['lot_front'] * homes['lot_depth']
     X["bedrooms"] = homes["bedrooms"]
     X["washrooms"] = homes["washrooms"]
     X["parking"] = homes["parking_total"]
@@ -42,6 +49,8 @@ def off_market_features(homes):
     # One 0/1 column per property type.
     for kind in PROPERTY_TYPES:
         X["is_" + kind] = (homes["house_type_name"] == kind).astype(int)
+    for muni in MUNICIPALITIES:
+        X["in_" + muni] = (homes["municipality"] == muni).astype(int)
     return X
 
 

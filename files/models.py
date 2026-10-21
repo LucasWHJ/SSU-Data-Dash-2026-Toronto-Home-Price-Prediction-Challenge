@@ -64,9 +64,9 @@ class NearestSalesBaseline:
         # long as a degree of latitude (0.72 = cosine of 43.7 degrees north).
         dx = (earlier["longitude"].to_numpy() - home["longitude"]) * 0.72
         dy = earlier["latitude"].to_numpy() - home["latitude"]
-        distance = np.sqrt(dx ** 2 + dy ** 2)
+        distance = np.sqrt(dx ** 2 + dy ** 2)  # Euclidean distance
 
-        nearest = np.argsort(distance, kind="stable")[: self.k]
+        nearest = np.argsort(distance, kind="stable")[: self.k]  # Choose k homes here (indices)
         return float(np.median(earlier["sold_price"].to_numpy()[nearest]))
 
 
