@@ -42,6 +42,8 @@ def off_market_features(homes):
     X["bedrooms"] = homes["bedrooms"]
     X["washrooms"] = homes["washrooms"]
     X["parking"] = homes["parking_total"]
+    X["garage"] = homes["garage"].astype(int)
+    X["num_amenities"] = X[["bedrooms", "washrooms", "parking", "garage"]].sum(axis = 1)
     X["latitude"] = homes["latitude"]
     X["longitude"] = homes["longitude"]
     # Months since January 2021, so the model can follow prices over time.
@@ -58,4 +60,5 @@ def list_aware_features(homes):
     """Features for homes that have a list price: everything above, plus the list price."""
     X = off_market_features(homes)
     X["list_price"] = homes["list_price"]
+    X["list_price_sqft"] = X["list_price"] / X["square_feet"]
     return X
