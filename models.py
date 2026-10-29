@@ -16,10 +16,8 @@ import features
 def make_model(track):
     """Return a fresh, untrained model for "off_market" or "list_aware"."""
     if track == "list_aware":
-        return ListPriceBaseline()
-        # return FeatureModel(features.list_aware_features)   # try this instead
-    return NearestSalesBaseline(k=10)
-    # return FeatureModel(features.off_market_features)       # try this instead
+        return FeatureModel(features.list_aware_features)   # try this instead
+    return FeatureModel(features.off_market_features)       # try this instead
 
 
 class ListPriceBaseline:
