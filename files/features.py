@@ -15,10 +15,13 @@ Ideas to try:
 """
 import pandas as pd
 
-PROPERTY_TYPES = ["Condo Apt", "Detached", "Semi-Detached", "Condo Townhouse",
-                  "Freehold Townhouse", "Co-Op Apt"]
+
+PROPERTY_TYPES = ["Condo Apt", "Condo Townhouse", "Co-Op Apt", "Detached",
+                  "Freehold Townhouse", "Semi-Detached"]
 
 MUNICIPALITIES = ["Etobicoke", "North York", "Scarborough", "Toronto", "York"]
+
+REMARK_KEYWORDS = []
 
 
 def square_feet(house_area, adj = None):
@@ -36,7 +39,7 @@ def square_feet(house_area, adj = None):
 
 def off_market_features(homes):
     """Features for homes with no list price."""
-    X = pd.DataFrame(index=homes.index)
+    X = pd.DataFrame(index = homes.index)
     X["square_feet"] = square_feet(homes["house_area"])
     X["lot_size"] = homes['lot_front'] * homes['lot_depth']
     X["bedrooms"] = homes["bedrooms"]
@@ -46,13 +49,16 @@ def off_market_features(homes):
     X["num_amenities"] = X[["bedrooms", "washrooms", "parking", "garage"]].sum(axis = 1)
     X["latitude"] = homes["latitude"]
     X["longitude"] = homes["longitude"]
+    X["remarks_count"] = homes['remarks'].apply(lambda row: len(row.split()))
     # Months since January 2021, so the model can follow prices over time.
     X["months"] = (homes["date_listed"] - pd.Timestamp("2021-01-01")).dt.days / 30.44
-    # One 0/1 column per property type.
+    # One 0/1 column per property type, municipality, keyword appearance.
     for kind in PROPERTY_TYPES:
         X["is_" + kind] = (homes["house_type_name"] == kind).astype(int)
     for muni in MUNICIPALITIES:
         X["in_" + muni] = (homes["municipality"] == muni).astype(int)
+    for word in REMARK_KEYWORDS:
+        X["has_" + word] = homes["remarks"].apply(lambda row: word.lower() in row.lower()).astype(int)
     return X
 
 

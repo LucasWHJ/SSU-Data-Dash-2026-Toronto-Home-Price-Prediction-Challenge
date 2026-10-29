@@ -80,7 +80,7 @@ class FeatureModel:
 
     def __init__(self, make_features):
         self.make_features = make_features
-        self.model = HistGradientBoostingRegressor(random_state=0)
+        self.model = HistGradientBoostingRegressor(random_state = 0)
 
     def fit(self, train):
         self.model.fit(self.make_features(train), np.log(train["sold_price"]))
