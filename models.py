@@ -8,16 +8,17 @@ make_model() picks the model for each track. The two starting models are baselin
 deliberately simple, so you can measure how much your own ideas add.
 """
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import HistGradientBoostingRegressor
 
 import features
 
 
 def make_model(track):
-    """Return a fresh, untrained model for "off_market" or "list_aware"."""
+    """Return a fresh, untrained model for 'off_market' or 'list_aware'."""
     if track == "list_aware":
-        return FeatureModel(features.list_aware_features)   # try this instead
-    return FeatureModel(features.off_market_features)       # try this instead
+        return ListAwareDeltaModel(features.list_aware_features)
+    return FeatureModel(features.off_market_features)
 
 
 class ListPriceBaseline:
@@ -70,21 +71,54 @@ class NearestSalesBaseline:
         return float(np.median(earlier["sold_price"].to_numpy()[nearest]))
 
 
-class FeatureModel:
-    """A machine-learning model (gradient-boosted trees) on the features in features.py.
-
-    It learns log(price) rather than price, so a 10% miss on a cheap condo counts
-    as much as a 10% miss on an expensive house. Not used until you switch it on
-    in make_model().
-    """
+class ListAwareDeltaModel:
+    """List-aware 专用模型：建模 ln(sold_price) - ln(list_price) 的对数溢价率。"""
 
     def __init__(self, make_features):
         self.make_features = make_features
-        self.model = HistGradientBoostingRegressor(random_state=0)
+        self.model = HistGradientBoostingRegressor(
+            max_iter=300,
+            learning_rate=0.05,
+            max_leaf_nodes=31,
+            min_samples_leaf=20,
+            random_state=42
+        )
 
     def fit(self, train):
-        self.model.fit(self.make_features(train), np.log(train["sold_price"]))
+        # 过滤可能存在缺失或异常的挂牌价
+        valid = train.dropna(subset=["list_price", "sold_price"])
+        valid = valid[(valid["list_price"] > 0) & (valid["sold_price"] > 0)]
+
+        X = self.make_features(valid)
+        # 核心：目标是 log(sold_price / list_price)
+        y = np.log(valid["sold_price"]) - np.log(valid["list_price"])
+        self.model.fit(X, y)
         return self
 
     def predict(self, homes):
-        return np.exp(self.model.predict(self.make_features(homes)))
+        X = self.make_features(homes)
+        # 预测相对溢价率，再乘以挂牌价还原出预测金额
+        delta_pred = self.model.predict(X)
+        return homes["list_price"].to_numpy(dtype=float) * np.exp(delta_pred)
+
+class FeatureModel:
+    def __init__(self, make_features):
+        self.make_features = make_features
+        self.model = HistGradientBoostingRegressor(
+            max_iter=300,
+            learning_rate=0.05,
+            max_leaf_nodes=63,
+            min_samples_leaf=20,
+            random_state=42
+        )
+
+    def fit(self, train):
+        valid = train.dropna(subset=["sold_price"])
+        valid = valid[valid["sold_price"] > 0]
+        X = self.make_features(valid)
+        self.model.fit(X, np.log(valid["sold_price"]))
+        return self
+
+    def predict(self, homes):
+        X = self.make_features(homes)
+        return np.exp(self.model.predict(X))

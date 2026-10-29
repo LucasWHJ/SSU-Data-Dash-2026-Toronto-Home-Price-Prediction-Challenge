@@ -49,15 +49,14 @@ def off_market_features(homes):
     X["lot_front"] = lot_front
     X["lot_depth"] = lot_depth
     X["lot_area"] = lot_front * lot_depth
-    X["lot_aspect_ratio"] = lot_depth / lot_front.replace(0, np.nan)
-
-    X["parking"] = homes["parking_total"]
+    X["parking_total"] = homes["parking_total"].fillna(0)
     X["garage"] = pd.to_numeric(homes["garage"], errors="coerce").fillna(0)
+
     lat = homes["latitude"]
     lon = homes["longitude"]
     X["latitude"] = lat
     X["longitude"] = lon
-    X["dist_to_center"] = np.sqrt(((lon - lon.median()) * 0.72) ** 2 + (lat - lat.median()) ** 2)
+    X["lat_lon_ratio"] = lat / lon.replace(0, np.nan)
 
     # Months since January 2021, so the model can follow prices over time.
     date_listed = pd.to_datetime(homes["date_listed"])
@@ -69,10 +68,11 @@ def off_market_features(homes):
     for kind in PROPERTY_TYPES:
         X["is_" + kind] = (homes["house_type_name"] == kind).astype(int)
 
-    for col in ["municipality", "community", "house_style"]:
-        if col in homes.columns:
-            freq = homes[col].value_counts(normalize=True)
-            X[f"{col}_freq"] = homes[col].map(freq).fillna(0)
+    if "remarks" in homes.columns:
+        remarks_lower = homes["remarks"].astype(str).str.lower()
+        for kw in ["renovated", "luxury", "finished basement", "as-is", "custom"]:
+            X[f"has_{kw.replace(' ', '_')}"] = remarks_lower.str.contains(kw, regex=False).astype(int)
+    return X
 
     if "remarks" in homes.columns:
         remarks_lower = homes["remarks"].astype(str).str.lower()
@@ -86,4 +86,5 @@ def list_aware_features(homes):
     """Features for homes that have a list price: everything above, plus the list price."""
     X = off_market_features(homes)
     X["list_price"] = homes["list_price"]
+    X["list_price_per_sqft"] = homes["list_price"] / X["square_feet"].replace(0, np.nan)
     return X
