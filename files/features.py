@@ -24,7 +24,7 @@ MUNICIPALITIES = ["Etobicoke", "North York", "Scarborough", "Toronto", "York"]
 REMARK_KEYWORDS = []
 
 
-def square_feet(house_area, adj = None):
+def square_feet(house_area, adj=None):
     """house_area is text, either one number ("622") or a range ("900-1099").
     Return a number: the number itself, or the middle of the range."""
     parts = house_area.astype(str).str.split("-", expand=True).reindex(columns=[0, 1])
@@ -39,17 +39,16 @@ def square_feet(house_area, adj = None):
 
 def off_market_features(homes):
     """Features for homes with no list price."""
-    X = pd.DataFrame(index = homes.index)
+    X = pd.DataFrame(index=homes.index)
     X["square_feet"] = square_feet(homes["house_area"])
     X["lot_size"] = homes['lot_front'] * homes['lot_depth']
     X["bedrooms"] = homes["bedrooms"]
     X["washrooms"] = homes["washrooms"]
     X["parking"] = homes["parking_total"]
     X["garage"] = homes["garage"].astype(int)
-    X["num_amenities"] = X[["bedrooms", "washrooms", "parking", "garage"]].sum(axis = 1)
+    X["num_amenities"] = homes[["bedrooms", "washrooms", "parking_total", "garage"]].sum(axis=1)
     X["latitude"] = homes["latitude"]
     X["longitude"] = homes["longitude"]
-    X["remarks_count"] = homes['remarks'].apply(lambda row: len(row.split()))
     # Months since January 2021, so the model can follow prices over time.
     X["months"] = (homes["date_listed"] - pd.Timestamp("2021-01-01")).dt.days / 30.44
     # One 0/1 column per property type, municipality, keyword appearance.
@@ -58,7 +57,9 @@ def off_market_features(homes):
     for muni in MUNICIPALITIES:
         X["in_" + muni] = (homes["municipality"] == muni).astype(int)
     for word in REMARK_KEYWORDS:
-        X["has_" + word] = homes["remarks"].apply(lambda row: word.lower() in row.lower()).astype(int)
+        X["has_" + word] = homes["remarks"].str.contains(word).astype(int)
+    X["remarks_word_count"] = homes['remarks'].str.split().str.len()
+    X["sold_price"] = homes["sold_price"]
     return X
 
 
@@ -66,5 +67,4 @@ def list_aware_features(homes):
     """Features for homes that have a list price: everything above, plus the list price."""
     X = off_market_features(homes)
     X["list_price"] = homes["list_price"]
-    X["list_price_sqft"] = X["list_price"] / X["square_feet"]
     return X

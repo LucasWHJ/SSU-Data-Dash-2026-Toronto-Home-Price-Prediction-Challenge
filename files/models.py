@@ -10,14 +10,16 @@ deliberately simple, so you can measure how much your own ideas add.
 import numpy as np
 from sklearn.ensemble import HistGradientBoostingRegressor
 
+from files import features
+
 
 def make_model(track):
     """Return a fresh, untrained model for "off_market" or "list_aware"."""
     if track == "list_aware":
-        return ListPriceBaseline()
-        # return FeatureModel(features.list_aware_features)   # try this instead
-    return NearestSalesBaseline(k=10)
-    # return FeatureModel(features.off_market_features)       # try this instead
+        # return ListPriceBaseline()
+        return FeatureModel(features.list_aware_features)    # try this instead
+    # return NearestSalesBaseline(k=10)
+    return FeatureModel(features.off_market_features)       # try this instead
 
 
 class ListPriceBaseline:
@@ -80,7 +82,7 @@ class FeatureModel:
 
     def __init__(self, make_features):
         self.make_features = make_features
-        self.model = HistGradientBoostingRegressor(random_state = 0)
+        self.model = HistGradientBoostingRegressor(random_state=0)
 
     def fit(self, train):
         self.model.fit(self.make_features(train), np.log(train["sold_price"]))
